@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kepler — NPI Orchestration Platform</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0e14'/><circle cx='16' cy='16' r='9' fill='none' stroke='%233b82f6' stroke-width='1.8'/><ellipse cx='16' cy='16' rx='14' ry='5.5' fill='none' stroke='%233b82f6' stroke-width='1.4' transform='rotate(-35 16 16)'/><path d='M16 9l2.5 7L16 23l-2.5-7Z' fill='%23ff5c35'/><circle cx='16' cy='16' r='2.5' fill='%23fff'/></svg>"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e14;--bg2:#0f1419;--bg3:#151b23;
+  --accent:#ff5c35;--accent-h:#ff6a4a;
+  --tp:#e2e8f0;--ts:#cbd5e1;--tm:#94a3b8;
+  --b1:#1e293b;--b2:#334155;
+  --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto',sans-serif;background:var(--bg);color:var(--tp);height:100vh;overflow:hidden;font-size:15px}
+input,textarea,button,select{font-family:inherit;font-size:inherit}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
+select{background:var(--bg2);border:1px solid var(--b2);color:var(--ts);border-radius:6px;padding:.55rem .8rem;font-size:13px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;padding-right:2rem}
+select:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,92,53,.15)}
+
+/* ── LAYOUT ── */
+.app-grid{display:grid;grid-template-columns:230px 1fr;grid-template-rows:90px 1fr 60px;height:100vh}
+.topbar{grid-column:1/-1;display:flex;flex-direction:column;justify-content:flex-end;padding:0 1.5rem .55rem;background:linear-gradient(135deg,#0d1117 0%,#0f1e35 40%,#12102a 100%);border-bottom:1px solid rgba(59,130,246,.25);z-index:100;position:relative;overflow:hidden}
+.topbar::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 70% 50%,rgba(59,130,246,.08) 0%,transparent 70%);pointer-events:none}
+.topbar-banner{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;position:relative;z-index:1}
+.topbar-nav{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+.bottombar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;background:rgba(10,14,20,.97);border-top:1px solid var(--b1);backdrop-filter:blur(10px);z-index:100}
+.sidebar-left{border-right:1px solid var(--b1);padding:1.25rem .95rem;overflow-y:auto;height:100%;background:rgba(13,17,23,.8)}
+.main{background:var(--bg);padding:1.5rem 1.75rem;overflow-y:auto;height:100%;position:relative}
+
+/* ── RIGHT SIDEBAR (fixed overlay) ── */
+.sidebar-right{position:fixed;top:90px;bottom:60px;right:0;width:290px;background:rgba(10,14,20,.97);border-left:1px solid rgba(59,130,246,.2);backdrop-filter:blur(14px);z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 320ms cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 32px rgba(0,0,0,.5)}
+.sidebar-right.open{transform:translateX(0)}
+.sidebar-toggle{position:fixed;top:50%;transform:translateY(-50%);right:0;z-index:201;background:#1e293b;border:1px solid rgba(59,130,246,.3);border-right:none;border-radius:6px 0 0 6px;padding:.6rem .5rem;cursor:pointer;transition:all 200ms ease;display:flex;flex-direction:column;align-items:center;gap:.3rem}
+.sidebar-toggle:hover{background:rgba(255,92,53,.15);border-color:var(--accent)}
+.sidebar-toggle.open{right:290px}
+.sidebar-right-inner{padding:1.1rem .95rem;overflow-y:auto;flex:1}
+
+/* ── LOGO AREA ── */
+.kepler-logo{display:flex;align-items:center;gap:.75rem}
+.kepler-logo-icon{width:38px;height:38px;flex-shrink:0}
+.kepler-wordmark{display:flex;flex-direction:column}
+.kepler-name{font-size:18px;font-weight:800;color:#fff;letter-spacing:2px;text-transform:uppercase;line-height:1}
+.kepler-tagline{font-size:9px;color:#6b8fbc;letter-spacing:.8px;text-transform:uppercase;margin-top:2px}
+
+/* ── BANNER HEADLINE ── */
+.banner-headline{display:flex;flex-direction:column;align-items:center}
+.banner-h1{font-size:15px;font-weight:800;color:#fff;letter-spacing:.5px;text-transform:uppercase;line-height:1.2;text-align:center}
+.banner-h1 span{color:#ff5c35}
+.banner-sub{font-size:10px;color:#6b8fbc;letter-spacing:.5px;margin-top:2px}
+.banner-dots{display:flex;gap:.4rem;margin-top:.4rem}
+.bdot{width:9px;height:9px;border-radius:50%}
+
+/* ── NAV TABS ── */
+.nav-tabs{display:flex;gap:.4rem}
+.nav-tab{padding:.4rem 1rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;background:transparent;color:#6b8fbc;font-size:12px;font-weight:600;cursor:pointer;transition:all 150ms ease;letter-spacing:.3px;text-transform:uppercase}
+.nav-tab.active{background:rgba(255,92,53,.15);border-color:var(--accent);color:var(--accent)}
+.nav-tab:hover:not(.active){border-color:rgba(255,255,255,.25);color:#cbd5e1}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.badge-green{background:rgba(16,185,129,.1);border:1px solid var(--green);color:var(--green)}
+.badge-yellow{background:rgba(245,158,11,.1);border:1px solid var(--yellow);color:var(--yellow)}
+.badge-red{background:rgba(239,68,68,.1);border:1px solid var(--red);color:var(--red)}
+.badge-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.badge-green .badge-dot{background:var(--green);box-shadow:0 0 5px rgba(16,185,129,.7)}
+.badge-yellow .badge-dot{background:var(--yellow)}
+.badge-red .badge-dot{background:var(--red);animation:pulse 1.5s infinite}
+
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes bounce{0%{transform:scale(.7)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes glowG{0%,100%{box-shadow:0 0 15px rgba(16,185,129,.2)}50%{box-shadow:0 0 35px rgba(16,185,129,.5)}}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+
+/* ── PHASE CARD (left sidebar) ── */
+.sec-label{font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.6px;text-transform:uppercase;margin-bottom:.75rem;padding-bottom:.6rem;border-bottom:1px solid var(--b2)}
+.phase-card{background:rgba(255,92,53,.06);border:1px solid rgba(255,92,53,.25);border-radius:8px;padding:.9rem;margin-bottom:1rem;animation:fadeUp .3s ease-out}
+.phase-num{font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.6px;text-transform:uppercase;margin-bottom:.3rem}
+.phase-title{font-size:15px;font-weight:700;color:var(--tp);margin-bottom:.4rem}
+.phase-desc{font-size:12px;color:var(--tm);line-height:1.65}
+.phase-tips{margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(255,92,53,.15)}
+.phase-tip{font-size:11px;color:var(--tm);display:flex;gap:.4rem;margin-bottom:.3rem}
+.phase-tip::before{content:'→';color:var(--accent);flex-shrink:0}
+.approve-row{display:flex;align-items:center;gap:.65rem;padding:.7rem .9rem;border-radius:8px;background:rgba(100,116,139,.05);cursor:pointer;transition:all 200ms ease;margin-top:1rem;border:1px solid transparent}
+.approve-row:hover{background:rgba(100,116,139,.1);border-color:var(--b2)}
+.approve-row.checked{background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.3)}
+.check-box{width:15px;height:15px;border:1.5px solid var(--b2);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 150ms ease}
+.check-box.on{background:var(--green);border-color:var(--green)}
+
+/* ── STEPPER ── */
+.stepper{display:flex;align-items:center;margin-bottom:1.75rem;padding-bottom:1.25rem;border-bottom:1px solid var(--b2)}
+.step{display:flex;align-items:center;gap:.55rem;flex-shrink:0}
+.step-circle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;transition:all 300ms ease;border:1.5px solid var(--b2);background:rgba(100,116,139,.07);color:var(--tm)}
+.step-circle.active{border-color:var(--accent);background:rgba(255,92,53,.12);color:var(--accent);box-shadow:0 0 12px rgba(255,92,53,.25)}
+.step-circle.done{border-color:var(--green);background:rgba(16,185,129,.12);color:var(--green);box-shadow:0 0 12px rgba(16,185,129,.25)}
+.step-label{font-size:12px;font-weight:500;color:var(--tm);white-space:nowrap}
+.step-label.active{color:var(--accent);font-weight:600}
+.step-label.done{color:var(--green)}
+.step-connector{flex:1;height:2px;background:var(--b2);margin:0 .6rem;min-width:16px;transition:background 300ms ease}
+.step-connector.done{background:var(--green)}
+
+/* ── BUTTONS ── */
+.btn{padding:.65rem 1.3rem;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all 180ms ease;border:1px solid transparent;display:inline-flex;align-items:center;gap:.5rem;white-space:nowrap}
+.btn-primary{background:var(--accent);border-color:var(--accent-h);color:#0a0e14;box-shadow:0 0 14px rgba(255,92,53,.2)}
+.btn-primary:hover{background:var(--accent-h);transform:translateY(-1px);box-shadow:0 0 20px rgba(255,92,53,.35)}
+.btn-primary:disabled{background:rgba(255,92,53,.2);border-color:rgba(255,92,53,.3);color:var(--tm);cursor:not-allowed;transform:none;box-shadow:none}
+.btn-outline{background:transparent;border-color:var(--b2);color:var(--ts)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-green{background:var(--green);border-color:var(--green);color:#0a0e14;box-shadow:0 0 14px rgba(16,185,129,.2)}
+.btn-green:hover{background:#059669;transform:translateY(-1px);box-shadow:0 0 22px rgba(16,185,129,.4)}
+.btn-ghost{background:rgba(255,92,53,.09);border:1px solid var(--accent);color:var(--accent)}
+.btn-ghost:hover{background:rgba(255,92,53,.18)}
+.btn-sm{padding:.4rem .85rem;font-size:12px;border-radius:6px}
+.btn-edit{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.4);color:#60a5fa;font-size:11px;padding:.3rem .7rem;border-radius:5px;cursor:pointer;transition:all 150ms}
+.btn-edit:hover{background:rgba(59,130,246,.2)}
+
+/* ── SPINNER ── */
+.spinner{width:15px;height:15px;border:2px solid transparent;border-top-color:currentColor;border-radius:50%;animation:spin 1s linear infinite;flex-shrink:0}
+
+/* ── TEXTAREA ── */
+.concept-label{font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.6px;text-transform:uppercase;margin-bottom:.5rem;display:block}
+.concept-area{width:100%;min-height:120px;background:rgba(15,20,25,.5);border:1px solid var(--b2);border-radius:8px;padding:.9rem 1rem;color:var(--ts);font-size:14px;line-height:1.65;resize:vertical;transition:all 200ms ease;outline:none}
+.concept-area::placeholder{color:#56647a}
+.concept-area:focus{border-color:var(--accent);box-shadow:0 0 14px rgba(255,92,53,.15)}
+.concept-area:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── DEDUP ── */
+.dedup-banner{background:rgba(245,158,11,.06);border:1px solid var(--yellow);border-left:4px solid var(--yellow);border-radius:8px;padding:.9rem 1.1rem;margin:1rem 0;animation:fadeUp .3s ease-out}
+
+/* ── CARD ── */
+.card{background:rgba(21,27,35,.9);border:1px solid var(--b2);border-radius:12px;padding:1.4rem;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.2);animation:scaleIn .3s ease-out}
+.card-title{font-size:15px;font-weight:700;color:var(--tp);margin-bottom:1rem;display:flex;align-items:center;gap:.65rem;flex-wrap:wrap}
+
+/* ── SCHEMA FIELDS ── */
+.schema-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:1.1rem;margin-bottom:1.4rem;padding-bottom:1.4rem;border-bottom:1px solid var(--b2)}
+.field-block .fl{font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.5px;text-transform:uppercase;margin-bottom:.4rem}
+.field-val{font-size:17px;font-weight:700;color:var(--tp);cursor:pointer;padding:.2rem .35rem;border-radius:4px;display:inline-block;transition:background 150ms}
+.field-val:hover{background:rgba(255,92,53,.08)}
+.field-val.ro{cursor:default;font-size:13px;font-family:'SF Mono',monospace}
+.field-val.ro:hover{background:transparent}
+.field-input{width:100%;background:rgba(255,92,53,.05);border:1px solid var(--accent);border-radius:5px;padding:.4rem .65rem;font-size:14px;color:var(--tp);outline:none;margin-top:.2rem}
+.freemium-note{font-size:12px;color:var(--green);background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:6px;padding:.55rem .9rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+
+/* ── FEATURE TREE in schema ── */
+.feature-tree-wrap{border:1px solid var(--b2);border-radius:10px;overflow:hidden;margin-top:1rem}
+.feat-tree-head{background:rgba(51,65,85,.15);padding:.8rem 1.1rem;font-size:13px;font-weight:700;color:var(--ts);border-bottom:1px solid var(--b2);display:flex;align-items:center;justify-content:space-between}
+.feat-row{display:flex;align-items:flex-start;gap:.85rem;padding:.9rem 1.1rem;border-bottom:1px solid var(--b1);transition:background 150ms ease;position:relative}
+.feat-row:last-child{border-bottom:none}
+.feat-row:hover{background:rgba(100,116,139,.06)}
+.feat-num{width:27px;height:27px;border-radius:50%;background:var(--accent);color:#0a0e14;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.feat-body{flex:1}
+.feat-name{font-size:14px;font-weight:600;color:var(--tp);margin-bottom:.25rem}
+.feat-flag{font-family:'SF Mono',Monaco,monospace;font-size:10px;color:var(--tm);background:rgba(100,116,139,.1);padding:.15rem .55rem;border-radius:3px;display:inline-block;margin-bottom:.5rem}
+.uom-chips{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+.uom-chip{background:rgba(255,92,53,.1);border:1px solid rgba(255,92,53,.4);color:var(--accent);font-size:12px;font-weight:500;padding:.22rem .6rem;border-radius:5px;display:inline-flex;align-items:center;gap:.35rem}
+.uom-chip-rm{color:var(--tm);cursor:pointer;font-size:13px;font-weight:700;line-height:1;background:none;border:none;padding:0}
+.uom-chip-rm:hover{color:var(--red)}
+.uom-add-btn{background:transparent;border:1px dashed var(--b2);color:var(--tm);font-size:12px;padding:.22rem .55rem;border-radius:5px;cursor:pointer;transition:all 150ms}
+.uom-add-btn:hover{border-color:var(--accent);color:var(--accent)}
+.uom-dropdown-sel{font-size:12px;padding:.22rem .5rem;border-radius:5px;background:var(--bg2);border:1px solid var(--accent);color:var(--tp);min-width:120px}
+.feat-del-btn{position:absolute;right:.8rem;top:.9rem;color:var(--tm);font-size:13px;cursor:pointer;opacity:0;transition:all 150ms;background:none;border:none;padding:.2rem}
+.feat-row:hover .feat-del-btn{opacity:1}
+.feat-del-btn:hover{color:var(--red);opacity:1!important}
+.add-feat-wrap{padding:.75rem 1.1rem;border-top:1px solid var(--b2)}
+.feat-add-sel{font-size:13px;width:100%}
+
+/* ── ARR PROJECTION CARD ── */
+.arr-card{background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(59,130,246,.06));border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:1.3rem;margin-top:1.25rem;animation:scaleIn .35s ease-out}
+.arr-title{font-size:13px;font-weight:700;color:var(--green);margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}
+.arr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1rem;margin-bottom:.9rem}
+.arr-stat{text-align:center}
+.arr-stat-val{font-size:22px;font-weight:800;color:var(--tp);line-height:1}
+.arr-stat-lbl{font-size:10px;color:var(--tm);margin-top:.3rem;text-transform:uppercase;letter-spacing:.4px}
+.arr-comparable{font-size:12px;color:var(--tm);margin-bottom:.4rem;display:flex;align-items:center;gap:.6rem}
+.arr-bar-bg{flex:1;height:4px;background:rgba(51,65,85,.5);border-radius:999px;overflow:hidden}
+.arr-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--green),rgba(16,185,129,.4))}
+.arr-range{font-size:13px;color:var(--green);font-weight:700;padding:.6rem .9rem;background:rgba(16,185,129,.08);border-radius:6px;text-align:center;border:1px solid rgba(16,185,129,.2)}
+
+/* ── VALIDATION ── */
+.val-bar{background:rgba(21,27,35,.9);border:1px solid var(--b2);border-radius:10px;padding:1.1rem 1.4rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;animation:fadeUp .3s ease-out}
+.val-progress{margin-bottom:1rem;padding:.75rem 1.1rem;background:rgba(51,65,85,.1);border:1px solid var(--b2);border-radius:8px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--tm)}
+
+/* ── SCENARIO CARDS ── */
+.sc-card{border-radius:12px;padding:1.4rem;margin-bottom:1rem;transition:all 400ms ease;animation:fadeUp .3s ease-out}
+.sc-card.green{background:rgba(16,185,129,.04);border:1px solid var(--green)}
+.sc-card.red{background:rgba(239,68,68,.04);border:1px solid var(--red)}
+.sc-card.yellow{background:rgba(245,158,11,.04);border:1px solid var(--yellow)}
+.sc-card.soft-green{background:rgba(16,185,129,.02);border:1px solid rgba(16,185,129,.4)}
+.sc-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,.05)}
+.sc-title{font-size:15px;font-weight:700;color:var(--tp)}
+.sc-desc{font-size:13px;color:var(--ts);line-height:1.65;margin-bottom:.65rem}
+.sc-meta{font-size:12px;color:var(--ts);margin-bottom:.2rem}
+
+/* ── METRICS ── */
+.impact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:.9rem;margin:1.1rem 0}
+.metric-card{background:rgba(21,27,35,.9);border:1px solid var(--b2);border-radius:10px;padding:1.1rem;transition:all 200ms ease}
+.metric-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.metric-lbl{font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.5px;text-transform:uppercase;margin-bottom:.4rem}
+.metric-val{font-size:20px;font-weight:700;color:var(--tp);line-height:1.2}
+.metric-sub{font-size:11px;color:var(--tm);margin-top:.25rem}
+
+/* ── RISK TABLE ── */
+.risk-table{background:rgba(21,27,35,.9);border:1px solid var(--b2);border-radius:10px;overflow:hidden}
+.tbl-head,.tbl-row{display:grid;grid-template-columns:1fr 80px 95px 75px 70px;gap:.75rem;padding:.85rem 1.1rem;align-items:center}
+.tbl-head{background:rgba(51,65,85,.2);border-bottom:1px solid var(--b2)}
+.tbl-head span{font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.5px;text-transform:uppercase}
+.tbl-row{border-bottom:1px solid var(--b1);transition:background 150ms;font-size:13px}
+.tbl-row:hover{background:rgba(100,116,139,.05)}
+.tbl-row.total{background:rgba(255,92,53,.03);border-top:2px solid var(--b2);border-bottom:none;font-weight:600}
+.sub-row{font-size:11px;color:var(--tm);padding:.35rem 1.1rem .65rem;border-bottom:1px solid var(--b1);border-left:2px solid rgba(239,68,68,.3);margin-left:1.1rem}
+.risk-badge{display:inline-flex;align-items:center;gap:.35rem;font-size:11px;font-weight:700;padding:.22rem .55rem;border-radius:4px}
+.risk-low{background:rgba(16,185,129,.1);border:1px solid var(--green);color:var(--green)}
+.risk-med{background:rgba(245,158,11,.1);border:1px solid var(--yellow);color:var(--yellow)}
+
+/* ── RIGHT SIDEBAR TREE ── */
+.sku-tree-item{margin-bottom:.55rem;border:1px solid var(--b2);border-radius:8px;overflow:hidden;transition:border-color 200ms}
+.sku-tree-item:hover{border-color:rgba(255,92,53,.3)}
+.sku-tree-item.new-sku{border-color:rgba(255,92,53,.5);box-shadow:0 0 10px rgba(255,92,53,.15)}
+.sku-hdr{display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;cursor:pointer;background:rgba(51,65,85,.2);transition:background 150ms;user-select:none}
+.sku-hdr:hover{background:rgba(51,65,85,.35)}
+.sku-toggle{font-size:9px;color:var(--tm);flex-shrink:0;width:10px}
+.sku-logo{width:24px;height:24px;flex-shrink:0;border-radius:4px}
+.sku-hdr-name{font-size:11px;font-weight:700;color:var(--tp);flex:1;font-family:'SF Mono',monospace;font-size:10px}
+.sku-new-badge{font-size:9px;font-weight:700;padding:.1rem .4rem;border-radius:3px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+.sku-body{background:rgba(15,20,25,.4);padding:.65rem .8rem}
+.h-timeline{display:flex;align-items:flex-start;margin:.5rem 0 .7rem;position:relative}
+.h-timeline::before{content:'';position:absolute;top:5px;left:10px;right:10px;height:1px;background:var(--b2)}
+.tl-event{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;z-index:1}
+.tl-dot{width:10px;height:10px;border-radius:50%;margin-bottom:.3rem;border:1.5px solid var(--bg)}
+.tl-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--tm);text-align:center;line-height:1.3}
+.tl-date{font-size:9px;font-weight:600;color:var(--ts);text-align:center;margin-top:.1rem}
+.feat-tree-item-r{margin:.3rem 0}
+.feat-hdr-r{display:flex;align-items:center;gap:.35rem;padding:.3rem .4rem;cursor:pointer;border-radius:4px;transition:background 150ms;user-select:none}
+.feat-hdr-r:hover{background:rgba(255,92,53,.07)}
+.feat-toggle-r{font-size:8px;color:var(--tm);width:9px;flex-shrink:0}
+.feat-name-r{font-size:11px;font-weight:600;color:var(--ts)}
+.uom-item-r{font-size:10px;color:var(--tm);padding:.15rem .4rem .15rem 1.4rem;display:flex;align-items:center;gap:.3rem}
+.uom-item-r::before{content:'◆';font-size:7px;color:var(--accent);flex-shrink:0}
+
+/* ── PAYLOADS MODAL ── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);z-index:1999;display:flex;align-items:center;justify-content:center}
+.modal{background:#0a0e14;border:1px solid var(--b2);border-radius:12px;box-shadow:0 24px 48px rgba(0,0,0,.6);z-index:2000;display:flex;flex-direction:column;overflow:hidden;animation:scaleIn .3s ease-out}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.4rem;border-bottom:1px solid var(--b2);flex-shrink:0}
+.modal-title{font-size:16px;font-weight:700;color:var(--tp)}
+.modal-close{font-size:22px;color:var(--tm);cursor:pointer;background:none;border:none;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 150ms}
+.modal-close:hover{color:var(--accent);transform:scale(1.15)}
+.modal-ftr{padding:1.1rem 1.4rem;border-top:1px solid var(--b2);display:flex;justify-content:space-between;align-items:center;background:rgba(51,65,85,.08);flex-shrink:0;gap:.75rem}
+.payload-tabs{display:flex;gap:.6rem;padding:.85rem 1.4rem;border-bottom:1px solid var(--b2);background:rgba(51,65,85,.1);flex-shrink:0;align-items:center}
+.p-tab{padding:.5rem 1rem;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--tm);font-size:13px;font-weight:600;cursor:pointer;transition:all 150ms}
+.p-tab.active{background:rgba(255,92,53,.15);border-color:var(--accent);color:var(--accent)}
+.p-tab:hover:not(.active){border-color:var(--b2);color:var(--ts)}
+.code-wrap{position:relative}
+.code-block{background:#0f1419;border:1px solid var(--b2);border-radius:8px;padding:1rem 1rem 1rem 3.5rem;font-family:'SF Mono',Monaco,monospace;font-size:12px;line-height:1.7;color:var(--ts);overflow-x:auto;white-space:pre}
+.json-edit-area{width:100%;min-height:300px;background:#0f1419;border:1px solid var(--accent);border-radius:8px;padding:1rem;font-family:'SF Mono',Monaco,monospace;font-size:12px;line-height:1.7;color:var(--ts);outline:none;resize:vertical}
+.code-btn-row{display:flex;gap:.5rem;position:absolute;top:.6rem;right:.6rem}
+.copy-btn{font-size:10px;font-weight:700;color:var(--tm);background:transparent;border:1px solid var(--b2);padding:.3rem .65rem;border-radius:4px;cursor:pointer;transition:all 150ms}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.copy-btn.ok{color:var(--green);border-color:var(--green)}
+.j-key{color:#ff5c35}.j-str{color:#10b981}.j-num{color:#f59e0b}.j-bool{color:#ff5c35}.j-null{color:#94a3b8}
+
+/* ── LAUNCH OVERLAY ── */
+.launch-overlay{position:fixed;inset:0;background:var(--bg);z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;animation:scaleIn .5s cubic-bezier(.34,1.56,.64,1)}
+.launch-rocket{font-size:68px;animation:bounce .8s ease-out;filter:drop-shadow(0 0 28px rgba(16,185,129,.5))}
+.launch-title{font-size:36px;font-weight:700;color:var(--green);text-shadow:0 0 18px rgba(16,185,129,.4)}
+.launch-cards{display:flex;gap:.9rem;margin-top:.75rem}
+.l-card{background:rgba(51,65,85,.2);border:1px solid var(--b2);padding:.65rem 1.1rem;border-radius:8px;font-size:13px;font-weight:600;color:var(--ts);display:flex;align-items:center;gap:.5rem}
+
+/* ── COHORT MATRIX ── */
+.cohort-matrix{border:1px solid var(--b2);border-radius:10px;overflow:hidden;margin-top:.75rem}
+.cohort-matrix-hdr{display:grid;grid-template-columns:1fr auto 80px;gap:1rem;padding:.65rem 1.1rem;background:rgba(51,65,85,.2);border-bottom:1px solid var(--b2)}
+.cohort-matrix-hdr span{font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.5px;text-transform:uppercase}
+.cohort-row-wrap{border-bottom:1px solid var(--b1)}
+.cohort-row-wrap:last-child{border-bottom:none}
+.cohort-row{display:grid;grid-template-columns:1fr auto 80px;gap:1rem;padding:.9rem 1.1rem;align-items:center;transition:background 150ms}
+.cohort-row-clickable{cursor:pointer}
+.cohort-row-clickable:hover{background:rgba(100,116,139,.06)}
+.cohort-badges{display:flex;gap:.45rem;flex-wrap:wrap}
+.cohort-badge{font-size:11px;font-weight:700;padding:.2rem .55rem;border-radius:4px;white-space:nowrap}
+.cb-green{background:rgba(16,185,129,.1);border:1px solid var(--green);color:var(--green)}
+.cb-red{background:rgba(239,68,68,.1);border:1px solid var(--red);color:var(--red)}
+.cb-yellow{background:rgba(245,158,11,.1);border:1px solid var(--yellow);color:var(--yellow)}
+.cohort-expand{background:rgba(15,20,25,.6);border-top:1px solid var(--b2);padding:.9rem 1.1rem;display:flex;flex-direction:column;gap:.65rem;animation:fadeUp .2s ease-out}
+.cohort-issue{padding:.85rem 1rem;border-radius:8px}
+.cohort-issue.red{background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.3)}
+.cohort-issue.yellow{background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.3)}
+
+/* ── SAP PUSH TOOLTIP ── */
+.sap-wrap{position:relative;display:inline-flex}
+.sap-tip{position:absolute;bottom:calc(100% + 10px);right:0;width:288px;background:#1e293b;border:1px solid rgba(59,130,246,.35);border-radius:10px;padding:1rem;font-size:12px;color:var(--ts);line-height:1.6;opacity:0;pointer-events:none;transition:opacity 180ms ease;z-index:400;box-shadow:0 10px 32px rgba(0,0,0,.5)}
+.sap-wrap:hover .sap-tip{opacity:1}
+.sap-tip::after{content:'';position:absolute;bottom:-6px;right:20px;width:10px;height:10px;background:#1e293b;border-right:1px solid rgba(59,130,246,.35);border-bottom:1px solid rgba(59,130,246,.35);transform:rotate(45deg)}
+.sap-tip-hdr{font-size:10px;font-weight:700;color:var(--tm);letter-spacing:.6px;text-transform:uppercase;margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px solid var(--b2)}
+.sap-tip-row{display:flex;align-items:flex-start;gap:.55rem;margin-bottom:.45rem}
+.sap-tip-row:last-child{margin-bottom:0}
+.sap-tip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px}
+
+/* ── NEXT STEPS CARD (Launch overlay) ── */
+.next-steps-card{background:rgba(21,27,35,.98);border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:1.3rem 1.4rem;width:min(540px,92vw);margin-top:1.25rem}
+.next-steps-hdr{font-size:10px;font-weight:700;color:var(--green);letter-spacing:.7px;text-transform:uppercase;margin-bottom:.55rem;padding-bottom:.55rem;border-bottom:1px solid rgba(16,185,129,.2)}
+.nxt-row{display:flex;align-items:flex-start;gap:.6rem;padding:.55rem .75rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.12);border-radius:7px;margin-bottom:.45rem;font-size:12px}
+.nxt-row:last-child{margin-bottom:0}
+.nxt-avail{margin-top:.75rem;padding:.65rem .9rem;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.28);border-radius:8px;font-size:12px}
+
+/* ── CUSTOMER DASHBOARD ── */
+.dash-outer{grid-column:1/-1;overflow-y:auto;background:var(--bg)}
+.dash-inner{max-width:1080px;margin:0 auto;padding:1.75rem}
+.dash-hero{background:linear-gradient(135deg,rgba(255,92,53,.1),rgba(255,92,53,.03));border:1px solid rgba(255,92,53,.25);border-radius:14px;padding:1.75rem;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center}
+.dash-feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1.1rem}
+.df-card{background:rgba(21,27,35,.9);border:1px solid var(--b2);border-radius:12px;padding:1.3rem;transition:all 250ms ease;position:relative;overflow:hidden}
+.df-card:hover{transform:translateY(-3px);box-shadow:0 12px 24px rgba(0,0,0,.3)}
+.df-card.active::before,.df-card.new-f::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.df-card.active::before{background:linear-gradient(90deg,var(--green),transparent)}
+.df-card.new-f{border-color:rgba(255,92,53,.4);animation:glowG 2.5s ease-in-out infinite}
+.df-card.new-f::before{background:linear-gradient(90deg,var(--accent),transparent)}
+.df-card.locked{opacity:.75}
+.df-status{display:inline-flex;align-items:center;gap:.35rem;font-size:10px;font-weight:700;padding:.25rem .65rem;border-radius:4px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.65rem}
+.ds-active{background:rgba(16,185,129,.12);border:1px solid var(--green);color:var(--green)}
+.ds-locked{background:rgba(100,116,139,.1);border:1px solid var(--b2);color:var(--tm)}
+.ds-new{background:rgba(255,92,53,.12);border:1px solid var(--accent);color:var(--accent)}
+.df-name{font-size:16px;font-weight:700;color:var(--tp);margin-bottom:.35rem}
+.df-desc{font-size:12px;color:var(--tm);line-height:1.6;margin-bottom:.9rem}
+.use-bar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--tm);margin-bottom:.3rem}
+.use-bar-bg{background:rgba(51,65,85,.4);border-radius:999px;height:5px;overflow:hidden}
+.use-bar-fill{height:100%;border-radius:999px}
+.lock-box{display:flex;align-items:flex-start;gap:.5rem;font-size:12px;color:var(--tm);background:rgba(100,116,139,.07);padding:.55rem .75rem;border-radius:6px}
+.upgrade-btn{width:100%;margin-top:.75rem;padding:.55rem .9rem;background:var(--accent);border:none;border-radius:7px;color:#0a0e14;font-size:13px;font-weight:700;cursor:pointer;transition:all 200ms}
+.upgrade-btn:hover{background:var(--accent-h);transform:translateY(-1px)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useMemo,useRef,useEffect}=React;
+
+/* ════════════════ DATA ════════════════ */
+const VALID_UOMS=["GB_Data","TB_Data","Log_Events","Sessions","Connections","Users","Endpoints","Alerts","API_Calls","Requests","Violations","Licenses","Devices","Events","MB_Data","Hours","Queries"];
+const FLAG_MAP={"Firewall-Base":"FIREWALL_BASE_ENABLED","AI-Threat-Detection":"CORTEX_AI_ENABLED","Advanced-Heuristics":"ADVANCED_HEURISTICS","DLP":"DLP_ENABLED","ZTNA":"ZTNA_ENABLED","Cloud-Security":"CLOUD_SEC_ENABLED","XDR-Detection":"XDR_DETECTION_ENABLED","SD-WAN":"SDWAN_ENABLED","SaaS-Security":"SAAS_SEC_ENABLED","Threat-Detection":"THREAT_DETECT_ENABLED","Threat-Intelligence":"THREAT_INTEL_ENABLED","Endpoint-Protection":"ENDPOINT_PROT_ENABLED"};
+const UOM_DEFAULTS={"Firewall-Base":["Sessions","Connections"],"AI-Threat-Detection":["GB_Data","Log_Events"],"Advanced-Heuristics":["Log_Events","Alerts"],"DLP":["GB_Data","Violations"],"ZTNA":["Sessions","Users"],"Cloud-Security":["API_Calls","GB_Data"],"XDR-Detection":["Endpoints","Alerts"],"SD-WAN":["Sessions","Requests"],"SaaS-Security":["Users","API_Calls"],"Threat-Detection":["GB_Data","Log_Events"],"Threat-Intelligence":["Events","API_Calls"],"Endpoint-Protection":["Devices","Licenses"]};
+const ALL_FEATURES=Object.keys(UOM_DEFAULTS);
+
+const INIT_CATALOG=[
+  {sku:"PRISMA-SHIELD-V1",plan:"Ultimate-SASE-V2",price:8,pricingUnit:"GB",minTerm:12,family:"prisma",
+   features:[{name:"Firewall-Base",flag:"FIREWALL_BASE_ENABLED",uoms:["Sessions","Connections"]},{name:"Threat-Detection",flag:"THREAT_DETECT_ENABLED",uoms:["GB_Data","Log_Events"]}],
+   customers:1200,monthlyRevenue:175000,arr:2100000,launchDate:"Q2 2024",lastSoldDate:"May 2026",lastModifiedDate:"Apr 2026"},
+  {sku:"CORTEX-XDR-PRO-V3",plan:"Ultimate-SecOps-V1",price:6.5,pricingUnit:"Endpoint",minTerm:12,family:"cortex",
+   features:[{name:"XDR-Detection",flag:"XDR_DETECTION_ENABLED",uoms:["Endpoints","Alerts"]},{name:"Threat-Intelligence",flag:"THREAT_INTEL_ENABLED",uoms:["Events","API_Calls"]}],
+   customers:480,monthlyRevenue:92000,arr:1104000,launchDate:"Q1 2024",lastSoldDate:"May 2026",lastModifiedDate:"Feb 2026"},
+  {sku:"CLOUDNGFW-V2",plan:"Cloud-Security-V1",price:5,pricingUnit:"GB",minTerm:12,family:"cloud",
+   features:[{name:"Cloud-Security",flag:"CLOUD_SEC_ENABLED",uoms:["API_Calls","GB_Data"]},{name:"Firewall-Base",flag:"FIREWALL_BASE_ENABLED",uoms:["Sessions","Connections"]}],
+   customers:320,monthlyRevenue:48000,arr:576000,launchDate:"Q3 2023",lastSoldDate:"Apr 2026",lastModifiedDate:"Mar 2026"},
+];
+
+const CUSTOMERS=[
+  {id:"wbd",name:"Warner Bros Discovery",cohort:"Enterprise-10K+",instances:10,region:"US/EU",spend:"$175K/mo"},
+  {id:"nike",name:"Nike",cohort:"Enterprise-10K+",instances:8,region:"US",spend:"$112K/mo"},
+  {id:"accenture",name:"Accenture",cohort:"Enterprise-50K+",instances:25,region:"Global",spend:"$340K/mo"},
+  {id:"lockheed",name:"Lockheed Martin",cohort:"Enterprise-10K+",instances:12,region:"US",spend:"$198K/mo"},
+  {id:"infosys",name:"Infosys",cohort:"Enterprise-50K+",instances:30,region:"Global",spend:"$285K/mo"},
+  {id:"aramco",name:"Saudi Aramco",cohort:"Enterprise-10K+",instances:15,region:"MENA",spend:"$220K/mo"},
+  {id:"toyota",name:"Toyota Motor Corp",cohort:"Enterprise-10K+",instances:18,region:"APAC",spend:"$195K/mo"},
+];
+
+/* ════════════════ PRODUCT LOGOS (SVG) ════════════════ */
+function PrismaLogo({size=24}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="6" fill="url(#pl)"/>
+      <defs><linearGradient id="pl" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stopColor="#312e81"/><stop offset="1" stopColor="#1e40af"/></linearGradient></defs>
+      <path d="M16 7C11 7 7 11 7 16C7 21 11 25 16 25C21 25 25 21 25 16" stroke="#818cf8" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M16 7L13 12H19L16 7Z" fill="#a5b4fc"/>
+      <circle cx="16" cy="16" r="3" fill="#c7d2fe"/>
+    </svg>
+  );
+}
+function CortexLogo({size=24}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="6" fill="url(#cl)"/>
+      <defs><linearGradient id="cl" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stopColor="#7c2d12"/><stop offset="1" stopColor="#c2410c"/></linearGradient></defs>
+      <path d="M16 8L20 14H24L20 19H24L16 26L8 19H12L8 14H12L16 8Z" fill="#fb923c" fillOpacity=".9"/>
+      <circle cx="16" cy="17" r="3" fill="#fed7aa"/>
+    </svg>
+  );
+}
+function CloudLogo({size=24}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="6" fill="url(#cll)"/>
+      <defs><linearGradient id="cll" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop stopColor="#065f46"/><stop offset="1" stopColor="#0d9488"/></linearGradient></defs>
+      <path d="M22 20H11C8.8 20 7 18.2 7 16C7 14.1 8.3 12.4 10.1 12C10.5 9.7 12.5 8 15 8C17.1 8 18.9 9.2 19.7 11H20C22.2 11 24 12.8 24 15C24 17.2 23.2 20 22 20Z" fill="#6ee7b7"/>
+      <path d="M16 16L13 19H15V24H17V19H19L16 16Z" fill="#34d399"/>
+    </svg>
+  );
+}
+function GenericLogo({size=24,letter='K'}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="6" fill="#1e293b"/>
+      <text x="16" y="21" textAnchor="middle" fontSize="14" fontWeight="700" fill="#ff5c35" fontFamily="system-ui">{letter}</text>
+    </svg>
+  );
+}
+function SkuLogo({sku,size=24}){
+  if(sku.startsWith('PRISMA')) return <PrismaLogo size={size}/>;
+  if(sku.startsWith('CORTEX')) return <CortexLogo size={size}/>;
+  if(sku.startsWith('CLOUD')) return <CloudLogo size={size}/>;
+  return <GenericLogo size={size} letter={sku[0]}/>;
+}
+
+/* ════════════════ KEPLER LOGO SVG ════════════════ */
+function KeplerIcon({size=36}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="kepler-logo-icon">
+      <rect width="40" height="40" rx="10" fill="#0d1117"/>
+      <circle cx="20" cy="20" r="11" fill="none" stroke="#3b82f6" strokeWidth="2"/>
+      <ellipse cx="20" cy="20" rx="18" ry="7" fill="none" stroke="#3b82f6" strokeWidth="1.4" transform="rotate(-35 20 20)"/>
+      <path d="M20 12l2.5 8L20 28l-2.5-8Z" fill="#ff5c35"/>
+      <circle cx="20" cy="20" r="2.8" fill="white"/>
+    </svg>
+  );
+}
+
+/* ════════════════ PARSING ════════════════ */
+function parseConcept(text){
+  const nameM=text.match(/['"]?([A-Za-z][A-Za-z0-9\-]+(?:\s[A-Za-z0-9\-]+)?)['"]?\s*(?:[:—\-]|is\s)/);
+  const name=nameM?nameM[1].trim():(text.split(/\s+/).slice(0,2).join('-'));
+  const priceM=text.match(/\$(\d+(?:\.\d+)?)\s*\/?\s*(GB|gb|user|seat|month|endpoint)?/i);
+  const price=priceM?parseFloat(priceM[1]):10;
+  const unit=(priceM&&priceM[2])?priceM[2].toUpperCase():'GB';
+  const termM=text.match(/(\d+)[- ](?:year|yr)/i)||text.match(/(\d+)[- ](?:month|mo)/i);
+  const minTerm=termM?(parseInt(termM[1])*(termM[0].toLowerCase().includes('year')?12:1)):12;
+  const freeM=text.match(/(?:first\s+)?(\d+)\s*(GB|gb)\s*(?:eligible for\s*)?(?:freemium|free)/i)||text.match(/freemium.*?(\d+)\s*(GB|gb)/i);
+  const freemium=freeM?parseInt(freeM[1]):0;
+  const feats=[];
+  if(/firewall/i.test(text)) feats.push("Firewall-Base");
+  if(/AI|threat[- ]detect|cortex/i.test(text)) feats.push("AI-Threat-Detection");
+  if(/heuristic/i.test(text)) feats.push("Advanced-Heuristics");
+  if(/dlp|data\s*loss/i.test(text)) feats.push("DLP");
+  if(/ztna|zero[- ]trust/i.test(text)) feats.push("ZTNA");
+  if(/cloud.*security|cloudngfw/i.test(text)) feats.push("Cloud-Security");
+  if(/xdr/i.test(text)) feats.push("XDR-Detection");
+  const uniq=[...new Set(feats)];
+  if(!uniq.length) uniq.push("Firewall-Base","AI-Threat-Detection");
+  const skuSafe=name.toUpperCase().replace(/\s+/g,'-').replace(/[^A-Z0-9\-]/g,'');
+  return{productName:name,sku:`PRISMA-${skuSafe}-V1`,plan:"Ultimate-SASE-V2",basePrice:price,pricingUnit:unit,minTerm,freemium,features:uniq.map(f=>({name:f,flag:FLAG_MAP[f]||'FLAG',uoms:[...(UOM_DEFAULTS[f]||["GB_Data"])]}))};
+}
+function findDupe(text){
+  if(/shield|prisma[- ]shield/i.test(text)) return{match:INIT_CATALOG[0],score:78,reason:"Feature overlap: Firewall + Threat Detection"};
+  if(/xdr/i.test(text)) return{match:INIT_CATALOG[1],score:82,reason:"Feature overlap: XDR Detection"};
+  if(/cloud.*firewall|cloudngfw/i.test(text)) return{match:INIT_CATALOG[2],score:74,reason:"Feature overlap: Cloud Security + Firewall"};
+  return null;
+}
+
+/* ════════════════ PAYLOADS ════════════════ */
+function genSF(s){return{product:{name:s.productName,family:"Prisma-AI",pricebook_entries:[{sku:s.sku,price:s.basePrice,currency:"USD",unit_of_measure:s.pricingUnit}],features:s.features.map(f=>f.name),minimum_term_months:s.minTerm,...(s.freemium>0?{freemium_tier:{quantity:s.freemium,unit:s.pricingUnit,price:0}}:{})}};}
+function genSAP(s){const tiers=s.freemium>0?[{min:0,max:s.freemium,price_per_unit:0},{min:s.freemium,price_per_unit:s.basePrice}]:[{min:0,price_per_unit:s.basePrice}];return{pricing_model:{sku:s.sku,subscription_type:"USAGE_BASED",usage_uom:`${s.pricingUnit}_Data`,rating_rule:{pricing_tier:tiers},minimum_commitment:{quantity:s.minTerm,uom:"MONTHS"}}};}
+function genEnt(s){return{feature_entitlements:{sku:s.sku,features:s.features.map(f=>({name:f.name,flag:f.flag,default:true,...(f.name==="Advanced-Heuristics"?{requires_hardware:["PA-300+","PA-5000+"],unsupported_hardware:["PA-200"]}:{})})),usage_tracking:{metrics:[...new Set(s.features.flatMap(f=>f.uoms))]}}};}
+function hl(j){return j.replace(/("(?:[^"\\]|\\.)*")\s*:/g,'<span class="j-key">$1</span>:').replace(/:\s*("(?:[^"\\]|\\.)*")/g,': <span class="j-str">$1</span>').replace(/:\s*(-?\d+(?:\.\d+)?)\b/g,': <span class="j-num">$1</span>').replace(/:\s*(true|false)\b/g,': <span class="j-bool">$1</span>').replace(/:\s*(null)\b/g,': <span class="j-null">$1</span>');}
+
+/* ════════════════ ARR PROJECTION ════════════════ */
+function ArrProjection({schema,catalog}){
+  const similars=catalog.filter(s=>s.arr>0).map(s=>({sku:s.sku,arr:s.arr,pct:Math.round(20+Math.random()*60)}));
+  const avgArr=similars.reduce((a,s)=>a+s.arr,0)/similars.length;
+  const projLow=Math.round(avgArr*0.7/1000)*1000;
+  const projHigh=Math.round(avgArr*1.4/1000)*1000;
+  const fmt=n=>n>=1000000?`$${(n/1000000).toFixed(1)}M`:`$${(n/1000).toFixed(0)}K`;
+  return(
+    <div className="arr-card">
+      <div className="arr-title">📈 Expected ARR — Based on Similar Products (Last 12 Months)</div>
+      <div className="arr-grid">
+        <div className="arr-stat"><div className="arr-stat-val">{fmt(projLow)}–{fmt(projHigh)}</div><div className="arr-stat-lbl">Year 1 ARR Projection</div></div>
+        <div className="arr-stat"><div className="arr-stat-val">{fmt(avgArr)}</div><div className="arr-stat-lbl">Avg ARR of Comparable SKUs</div></div>
+        <div className="arr-stat"><div className="arr-stat-val">{similars.length}</div><div className="arr-stat-lbl">Comparable Products Analyzed</div></div>
+        <div className="arr-stat"><div className="arr-stat-val" style={{color:'var(--green)'}}>MEDIUM</div><div className="arr-stat-lbl">Confidence Level</div></div>
+      </div>
+      <div style={{marginBottom:'.65rem'}}>
+        {similars.map(s=>(
+          <div className="arr-comparable" key={s.sku}>
+            <SkuLogo sku={s.sku} size={16}/>
+            <span style={{fontSize:11,color:'var(--ts)',minWidth:140}}>{s.sku}</span>
+            <div className="arr-bar-bg"><div className="arr-bar-fill" style={{width:`${s.pct}%`}}/></div>
+            <span style={{fontSize:11,color:'var(--tp)',fontWeight:700,minWidth:50,textAlign:'right'}}>{fmt(s.arr)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="arr-range">Projected Year 1 ARR: <strong>{fmt(projLow)}</strong> – <strong>{fmt(projHigh)}</strong> &nbsp;·&nbsp; Based on {schema.features.length} features, ${schema.basePrice}/{schema.pricingUnit} pricing</div>
+    </div>
+  );
+}
+
+/* ════════════════ RIGHT SIDEBAR ════════════════ */
+function RightSidebar({catalog,open,onToggle}){
+  const [expSku,setExpSku]=useState({});
+  const [expFeat,setExpFeat]=useState({});
+  const tgl=(id,setter)=>setter(p=>({...p,[id]:!p[id]}));
+  const tlColors=['#10b981','#ff5c35','#f59e0b'];
+  const tlLabels=['Launched','Last Sold','Modified'];
+  return(
+    <>
+      <button className={`sidebar-toggle${open?' open':''}`} onClick={onToggle} title={open?'Close catalog':'Open SKU catalog'}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="1.5" rx=".75" fill="#94a3b8"/><rect x="1" y="6.25" width="12" height="1.5" rx=".75" fill="#94a3b8"/><rect x="1" y="10.5" width="12" height="1.5" rx=".75" fill="#94a3b8"/></svg>
+        <span style={{fontSize:9,color:'var(--tm)',letterSpacing:.3,writingMode:'vertical-rl',textTransform:'uppercase',transform:'rotate(180deg)'}}>SKUs</span>
+      </button>
+      <div className={`sidebar-right${open?' open':''}`}>
+        <div style={{padding:'.85rem .95rem',borderBottom:'1px solid var(--b2)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          <span style={{fontSize:11,fontWeight:700,color:'var(--tm)',letterSpacing:.6,textTransform:'uppercase'}}>Existing SKUs <span style={{color:'var(--accent)'}}>{catalog.length}</span></span>
+          <button style={{background:'none',border:'none',color:'var(--tm)',cursor:'pointer',fontSize:18}} onClick={onToggle}>×</button>
+        </div>
+        <div className="sidebar-right-inner">
+          {catalog.map((s,si)=>(
+            <div className={`sku-tree-item${si>=INIT_CATALOG.length?' new-sku':''}`} key={s.sku}>
+              <div className="sku-hdr" onClick={()=>tgl(s.sku,setExpSku)}>
+                <span className="sku-toggle">{expSku[s.sku]?'▼':'▶'}</span>
+                <SkuLogo sku={s.sku} size={22}/>
+                <span className="sku-hdr-name">{s.sku}</span>
+                {si>=INIT_CATALOG.length&&<span className="sku-new-badge">NEW</span>}
+              </div>
+              {expSku[s.sku]&&(
+                <div className="sku-body">
+                  <div style={{fontSize:11,color:'var(--tm)',marginBottom:'.3rem'}}>${s.price}/{s.pricingUnit} · {s.minTerm}mo min · {s.plan}</div>
+                  <div className="h-timeline">
+                    {[s.launchDate,s.lastSoldDate,s.lastModifiedDate].map((d,i)=>(
+                      <div className="tl-event" key={i}>
+                        <div className="tl-dot" style={{background:tlColors[i],boxShadow:`0 0 5px ${tlColors[i]}66`}}/>
+                        <div className="tl-lbl">{tlLabels[i]}</div>
+                        <div className="tl-date">{d}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {s.features.map(f=>{
+                    const fk=`${s.sku}::${f.name}`;
+                    return(
+                      <div className="feat-tree-item-r" key={f.name}>
+                        <div className="feat-hdr-r" onClick={()=>tgl(fk,setExpFeat)}>
+                          <span className="feat-toggle-r">{expFeat[fk]?'▼':'▶'}</span>
+                          <span className="feat-name-r">⚡ {f.name}</span>
+                        </div>
+                        {expFeat[fk]&&(
+                          <div>
+                            <div style={{fontSize:9,color:'var(--tm)',padding:'.1rem .4rem .1rem 1.4rem',fontFamily:'monospace'}}>{f.flag}</div>
+                            {f.uoms.map(u=><div className="uom-item-r" key={u}>{u}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ════════════════ STEPPER ════════════════ */
+function Stepper({step}){
+  const steps=['Intake','Technical Mapping','Validation','Launch'];
+  return(
+    <div className="stepper">
+      {steps.map((lbl,i)=>{
+        const n=i+1;const done=step>n;const active=step===n;
+        return(
+          <React.Fragment key={i}>
+            <div className="step">
+              <div className={`step-circle${done?' done':active?' active':''}`}>{done?'✓':active?<span className="spinner" style={{width:14,height:14}}/>:n}</div>
+              <span className={`step-label${done?' done':active?' active':''}`}>{lbl}</span>
+            </div>
+            {i<3&&<div className={`step-connector${done?' done':''}`}/>}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ════════════════ DEDUP BANNER ════════════════ */
+function DedupBanner({dupe,onUseExisting,onCreateNew}){
+  const [exp,setExp]=useState(false);
+  return(
+    <div className="dedup-banner">
+      <div style={{display:'flex',gap:'.7rem',alignItems:'flex-start'}}>
+        <span style={{fontSize:20,color:'var(--yellow)',flexShrink:0}}>⚠</span>
+        <div style={{flex:1}}>
+          <div style={{fontSize:14,fontWeight:700,color:'var(--yellow)',marginBottom:'.3rem'}}>Existing SKU Match Detected</div>
+          <div style={{fontSize:13,color:'var(--ts)',marginBottom:'.65rem'}}>{dupe.reason} — {dupe.score}% confidence match with <strong>{dupe.match.sku}</strong></div>
+          <button style={{background:'none',border:'none',color:'var(--tm)',fontSize:12,cursor:'pointer',padding:0,marginBottom:'.65rem',display:'block'}} onClick={()=>setExp(v=>!v)}>{exp?'▲ Hide':'▼ Show'} existing SKU details</button>
+          {exp&&<div style={{background:'rgba(51,65,85,.15)',borderRadius:6,padding:'.7rem',fontFamily:'monospace',fontSize:11,color:'var(--ts)',lineHeight:1.7,marginBottom:'.65rem',whiteSpace:'pre'}}>
+{`SKU: ${dupe.match.sku}
+Plan: ${dupe.match.plan}
+Price: $${dupe.match.price}/${dupe.match.pricingUnit} · Min Term: ${dupe.match.minTerm}mo
+Features: ${dupe.match.features.map(f=>f.name).join(', ')}
+Customers: ${dupe.match.customers.toLocaleString()}`}
+          </div>}
+          <div style={{display:'flex',gap:'.65rem'}}>
+            <button className="btn btn-ghost btn-sm" onClick={onUseExisting}>Use Existing SKU</button>
+            <button className="btn btn-primary btn-sm" onClick={onCreateNew}>Create New Variant →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════ SCHEMA EDITOR ════════════════ */
+function SchemaEditor({schema,setSchema}){
+  const [editing,setEditing]=useState(null);
+  const [tv,setTv]=useState('');
+  const [addingUom,setAddingUom]=useState(null);
+  const start=(f,v)=>{setEditing(f);setTv(String(v));};
+  const confirm=(f)=>{
+    const v=tv.trim();if(!v){setEditing(null);return;}
+    setSchema(s=>{const n={...s};
+      if(f==='basePrice')n.basePrice=parseFloat(v)||s.basePrice;
+      else if(f==='minTerm')n.minTerm=parseInt(v)||s.minTerm;
+      else if(f==='freemium')n.freemium=parseInt(v)||0;
+      else n[f]=v;return n;
+    });setEditing(null);
+  };
+  const EditF=({field,label,display,raw})=>(
+    <div className="field-block">
+      <div className="fl">{label}</div>
+      {editing===field
+        ?<input className="field-input" value={tv} autoFocus onChange={e=>setTv(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')confirm(field);if(e.key==='Escape')setEditing(null);}} onBlur={()=>confirm(field)}/>
+        :<div className="field-val" onClick={()=>start(field,raw??display)} title="Click to edit">{display}</div>
+      }
+    </div>
+  );
+  const addFeature=(name)=>{if(!name||schema.features.find(f=>f.name===name))return;setSchema(s=>({...s,features:[...s.features,{name,flag:FLAG_MAP[name]||'FLAG',uoms:[...(UOM_DEFAULTS[name]||["GB_Data"])]}]}));};
+  const removeFeature=(i)=>setSchema(s=>({...s,features:s.features.filter((_,idx)=>idx!==i)}));
+  const removeUom=(fi,ui)=>setSchema(s=>({...s,features:s.features.map((f,i)=>i===fi?{...f,uoms:f.uoms.filter((_,j)=>j!==ui)}:f)}));
+  const addUom=(fi,uom)=>{setSchema(s=>({...s,features:s.features.map((f,i)=>i===fi&&!f.uoms.includes(uom)?{...f,uoms:[...f.uoms,uom]}:f)}));setAddingUom(null);};
+  const usedFeats=schema.features.map(f=>f.name);
+  const availFeats=ALL_FEATURES.filter(f=>!usedFeats.includes(f));
+  return(
+    <div className="card" style={{marginTop:'1.1rem'}}>
+      <div className="card-title">
+        Generated Schema
+        <span style={{fontSize:12,color:'var(--green)'}}>✓ AI-generated</span>
+        <span style={{marginLeft:'auto',fontSize:11,fontFamily:'monospace',color:'var(--tm)'}}>{schema.sku}</span>
+      </div>
+      <div className="schema-fields">
+        <div className="field-block"><div className="fl">SKU (Auto-generated)</div><div className="field-val ro">{schema.sku}</div></div>
+        <EditF field="plan" label="Plan (Inferred)" display={schema.plan} raw={schema.plan}/>
+        <EditF field="basePrice" label="Base Price" display={`$${schema.basePrice}/${schema.pricingUnit}`} raw={schema.basePrice}/>
+        <EditF field="minTerm" label="Min Term" display={`${schema.minTerm} months`} raw={schema.minTerm}/>
+        
+    <EditF field="freemium" label="Freemium Tier" display={schema.freemium>0?`${schema.freemium} ${schema.pricingUnit} free`:'None'} raw={schema.freemium}/>
+<div className="field-block">
+  <div className="fl">Pricing Unit</div>
+  <select style={{fontSize:14,marginBottom:'.4rem',width:'100%'}} value={schema.pricingUnit}
+    onChange={e=>setSchema(s=>({...s,pricingUnit:e.target.value}))}>
+    {VALID_UOMS.map(u=><option key={u} value={u}>{u}</option>)}
+  </select>
+  <div style={{fontSize:10,color:'var(--tm)',marginTop:'.2rem'}}>Billing metric:</div>
+  <select style={{fontSize:12,width:'100%'}} value={schema.billingMetric||''}
+    onChange={e=>setSchema(s=>({...s,billingMetric:e.target.value}))}>
+    <option value="">— select what to track —</option>
+    <option value="firewall_traffic_gb">Firewall traffic processed</option>
+    <option value="log_ingest_gb">Log data ingested (Cortex)</option>
+    <option value="dlp_scan_gb">Data scanned (DLP)</option>
+    <option value="backup_gb">Backup data volume</option>
+    <option value="api_payload_gb">API payload volume</option>
+  </select>
+</div>
+    
+      
+      </div>
+      {schema.freemium>0&&<div className="freemium-note">⚡ Freemium active: First {schema.freemium} {schema.pricingUnit} free · then ${schema.basePrice}/{schema.pricingUnit}</div>}
+      <div className="feature-tree-wrap">
+        <div className="feat-tree-head"><span>Features → Unit of Measure Mapping</span><span style={{fontSize:12,color:'var(--tm)'}}>{schema.features.length} feature{schema.features.length!==1?'s':''}</span></div>
+        {schema.features.map((f,fi)=>(
+          <div className="feat-row" key={fi}>
+            <div className="feat-num">{fi+1}</div>
+            <div className="feat-body">
+              <div className="feat-name">{f.name}</div>
+              <div className="feat-flag">{f.flag}</div>
+              <div className="uom-chips">
+                {f.uoms.map((u,ui)=>(
+                  <span className="uom-chip" key={ui}>{u}<button className="uom-chip-rm" onClick={()=>removeUom(fi,ui)}>×</button></span>
+                ))}
+                {addingUom===fi
+                  ?<select className="uom-dropdown-sel" autoFocus defaultValue="" onChange={e=>{if(e.target.value)addUom(fi,e.target.value);}} onBlur={()=>setAddingUom(null)}>
+                    <option value="">Select UoM…</option>
+                    {VALID_UOMS.filter(u=>!f.uoms.includes(u)).map(u=><option key={u} value={u}>{u}</option>)}
+                  </select>
+                  :<button className="uom-add-btn" onClick={()=>setAddingUom(fi)}>+ Add UoM</button>
+                }
+              </div>
+            </div>
+            <button className="feat-del-btn" onClick={()=>removeFeature(fi)}>🗑</button>
+          </div>
+        ))}
+        <div className="add-feat-wrap">
+          {availFeats.length>0
+            ?<select className="feat-add-sel" value="" onChange={e=>{if(e.target.value)addFeature(e.target.value);}}>
+              <option value="">+ Add Feature…</option>
+              {availFeats.map(f=><option key={f} value={f}>{f}</option>)}
+            </select>
+            :<div style={{fontSize:12,color:'var(--tm)',textAlign:'center'}}>All features added</div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════ COHORT MATRIX (Validation) ════════════════ */
+const COHORTS=[
+  {id:'enterprise',label:'Enterprise (10K+)',customers:'1,200 accounts',revenue:'$175K/mo',color:'#3b82f6',
+   issues:{hardware:true,compliance:false},
+   hardwareDetail:'40 PA-200 units at key Enterprise accounts do not support Advanced-Heuristics. Blocked from purchasing this SKU without hardware upgrade. Revenue at risk: ~$15K/mo.',
+   complianceDetail:null},
+  {id:'midmarket',label:'Mid-Market (1K–10K)',customers:'480 accounts',revenue:'$92K/mo',color:'#f59e0b',
+   issues:{hardware:false,compliance:true},
+   hardwareDetail:null,
+   complianceDetail:'Deep Packet Inspection triggers Works Council rules in Germany. 28 DE-region accounts cannot be sold to without legal sign-off. Revenue at risk: ~$17K/mo.'},
+  {id:'smb',label:'SMB (<1K employees)',customers:'1,800 accounts',revenue:'$48K/mo',color:'#10b981',
+   issues:{hardware:false,compliance:false},
+   hardwareDetail:null,complianceDetail:null},
+];
+
+function CohortRow({cohort,hwState,compState,onFix}){
+  const [expanded,setExpanded]=useState(false);
+  const [fixing,setFixing]=useState(null);
+  const hwFixed=hwState==='resolved';
+  const compFixed=compState==='escalated';
+  const hasHwIssue=cohort.issues.hardware&&!hwFixed;
+  const hasCompIssue=cohort.issues.compliance&&!compFixed;
+  const hasAny=hasHwIssue||hasCompIssue;
+  const hwStatus=cohort.issues.hardware?(hwFixed?'fixed':'conflict'):'clear';
+  const compStatus=cohort.issues.compliance?(compFixed?'escalated':'blocked'):'clear';
+  const doFix=(type)=>{setFixing(type);setTimeout(()=>{setFixing(null);onFix(type==='hw'?'hardware':'compliance');},1800);};
+  return(
+    <div className="cohort-row-wrap">
+      <div className={`cohort-row${hasAny?' cohort-row-clickable':''}`} onClick={()=>hasAny&&setExpanded(x=>!x)}>
+        <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
+          <div style={{width:9,height:9,borderRadius:'50%',background:cohort.color,flexShrink:0,boxShadow:`0 0 7px ${cohort.color}99`}}/>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:'var(--tp)'}}>{cohort.label}</div>
+            <div style={{fontSize:11,color:'var(--tm)'}}>{cohort.customers} · {cohort.revenue}</div>
+          </div>
+        </div>
+        <div className="cohort-badges">
+          <span className={`cohort-badge ${hwStatus==='clear'||hwStatus==='fixed'?'cb-green':'cb-red'}`}>
+            {hwStatus==='clear'?'✓ HW OK':hwStatus==='fixed'?'✓ HW Fixed':'❌ HW Conflict'}
+          </span>
+          <span className={`cohort-badge ${compStatus==='clear'?'cb-green':compStatus==='escalated'?'cb-yellow':'cb-red'}`}>
+            {compStatus==='clear'?'✓ Compliant':compStatus==='escalated'?'⚠ Escalated':'⚠ DE Blocked'}
+          </span>
+        </div>
+        <div style={{textAlign:'right',fontSize:12}}>
+          {!hasAny
+            ?<span style={{color:'var(--green)',fontWeight:700}}>✓ Clear</span>
+            :<span style={{color:'var(--tm)'}}>{expanded?'▾ collapse':'▸ fix issue'}</span>
+          }
+        </div>
+      </div>
+      {expanded&&hasAny&&(
+        <div className="cohort-expand">
+          {hasHwIssue&&(
+            <div className="cohort-issue red">
+              <div style={{fontWeight:700,color:'var(--red)',marginBottom:'.3rem',fontSize:13}}>❌ Hardware Conflict — Enterprise</div>
+              <div style={{fontSize:12,color:'var(--ts)',lineHeight:1.6,marginBottom:'.7rem'}}>{cohort.hardwareDetail}</div>
+              <button className="btn btn-primary btn-sm" onClick={()=>doFix('hw')} disabled={!!fixing}>
+                {fixing==='hw'?<><span className="spinner"/>&nbsp;Applying AI Fix…</>:'⚡ Apply AI Fix — Add PA200-Compat Variant'}
+              </button>
+            </div>
+          )}
+          {hasCompIssue&&(
+            <div className="cohort-issue yellow">
+              <div style={{fontWeight:700,color:'var(--yellow)',marginBottom:'.3rem',fontSize:13}}>⚠ Compliance Block — Mid-Market DE</div>
+              <div style={{fontSize:12,color:'var(--ts)',lineHeight:1.6,marginBottom:'.4rem'}}>{cohort.complianceDetail}</div>
+              <div style={{fontSize:11,color:'var(--tm)',marginBottom:'.7rem'}}>Strategy: Launch UK, FR, CH immediately · DE follows in 3 weeks pending Works Council</div>
+              <button className="btn btn-sm" style={{background:'var(--yellow)',borderColor:'var(--yellow)',color:'#0a0e14'}} onClick={()=>doFix('comp')} disabled={!!fixing}>
+                {fixing==='comp'?<><span className="spinner"/>&nbsp;Escalating…</>:'📋 Create Legal Escalation Task'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════ VALIDATION STEP ════════════════ */
+function ValidationStep({schema,hwState,compState,onFix,onProceed}){
+  const resolved=[hwState==='resolved',compState==='escalated'];
+  const resolvedCount=resolved.filter(Boolean).length;
+  const allResolved=resolved.every(Boolean);
+  return(
+    <div style={{animation:'fadeUp .3s ease-out'}}>
+      <div style={{fontSize:16,fontWeight:700,color:'var(--tp)',marginBottom:'.25rem'}}>Validation — Cohort Impact Matrix</div>
+      <div style={{fontSize:13,color:'var(--tm)',marginBottom:'1rem'}}>All customer segments checked simultaneously for hardware and compliance conflicts.</div>
+      <div className="val-progress">
+        <span>Issues resolved: <span style={{fontWeight:700,color:allResolved?'var(--green)':resolvedCount>0?'var(--yellow)':'var(--red)'}}>{resolvedCount} / 2</span></span>
+        {allResolved&&<span style={{color:'var(--green)',fontWeight:600}}>✓ All cohorts cleared — ready to launch</span>}
+      </div>
+      <div className="cohort-matrix">
+        <div className="cohort-matrix-hdr">
+          <span>Customer Cohort</span>
+          <span>Compatibility &amp; Compliance</span>
+          <span style={{textAlign:'right'}}>Status</span>
+        </div>
+        {COHORTS.map(c=><CohortRow key={c.id} cohort={c} hwState={hwState} compState={compState} onFix={onFix}/>)}
+      </div>
+      <div style={{marginTop:'1rem'}}>
+        {allResolved
+          ?<button className="btn btn-green" style={{width:'100%',fontSize:14,padding:'1rem'}} onClick={onProceed}>✓ All Cohorts Validated — Proceed to Launch →</button>
+          :<div style={{padding:'.75rem 1rem',background:'rgba(239,68,68,.05)',border:'1px solid rgba(239,68,68,.25)',borderRadius:8,fontSize:13,color:'var(--tm)',textAlign:'center'}}>
+            ⚠ Click a cohort row with issues to expand and resolve · {2-resolvedCount} remaining
+          </div>
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════ IMPACT + TABLE ════════════════ */
+function ImpactPanel({hwState}){
+  const rev=hwState==='resolved'?145000:130000;
+  const risk=hwState==='unresolved'?'HIGH':'LOW';
+  return(
+    <div style={{marginTop:'1.5rem'}}>
+      <div style={{fontSize:14,fontWeight:700,color:'var(--tp)',marginBottom:'.85rem'}}>Impact Analysis — Portfolio Simulation</div>
+      <div className="impact-grid">
+        {[{l:'Est. Monthly Revenue',v:`$${(rev/1000).toFixed(0)}K`,s:hwState==='unresolved'?'conflict detected':'no conflicts',c:hwState==='unresolved'?'red':'green'},{l:'Affected Cohorts',v:'Enterprise-10K+',s:'Mid-Market-1K+',c:'green'},{l:'Freemium Cannibalization',v:'LOW',s:'~5% impact',c:'green'},{l:'Net New Contracts (30d)',v:'8–12 deals',c:'green'},{l:'Launch-Day Risk',v:risk,c:risk==='LOW'?'green':'red'},{l:'Recommendation',v:risk==='LOW'?'Proceed':'Resolve Conflicts',c:risk==='LOW'?'green':'red'}].map((m,i)=>(
+          <div className="metric-card" key={i}>
+            <div className="metric-lbl">{m.l}</div>
+            <div className="metric-val" style={{color:`var(--${m.c})`}}>{m.v}</div>
+            {m.s&&<div className="metric-sub">{m.s}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function CanniTable(){
+  const rows=[{sku:'PRISMA-SHIELD-V1',c:'1,200',r:'$175K',ov:35,risk:'MEDIUM',lost:'$61K/month'},{sku:'CORTEX-XDR-PRO-V3',c:'480',r:'$92K',ov:18,risk:'LOW',lost:'$17K/month'},{sku:'CLOUDNGFW-V2',c:'320',r:'$48K',ov:8,risk:'LOW',lost:'$4K/month'}];
+  return(
+    <div style={{marginTop:'1.5rem'}}>
+      <div style={{fontSize:14,fontWeight:700,color:'var(--tp)',marginBottom:'.85rem'}}>Cannibalization Risk Matrix</div>
+      <div className="risk-table">
+        <div className="tbl-head"><span>Existing SKU</span><span>Customers</span><span>Monthly Rev</span><span>Overlap</span><span>Risk</span></div>
+        {rows.map(r=>(
+          <React.Fragment key={r.sku}>
+            <div className="tbl-row">
+              <div style={{fontWeight:600,color:'var(--tp)',display:'flex',alignItems:'center',gap:'.5rem'}}><SkuLogo sku={r.sku} size={16}/>{r.sku}</div>
+              <div style={{color:'var(--ts)'}}>{r.c}</div>
+              <div style={{fontWeight:600,color:'var(--green)'}}>{r.r}</div>
+              <div style={{fontWeight:700,color:r.ov>20?'var(--yellow)':'var(--green)'}}>{r.ov}%</div>
+              <div><span className={`risk-badge ${r.risk==='MEDIUM'?'risk-med':'risk-low'}`}><span style={{width:5,height:5,borderRadius:'50%',background:r.risk==='MEDIUM'?'var(--yellow)':'var(--green)',display:'inline-block'}}/>{r.risk}</span></div>
+            </div>
+            <div className="sub-row">Est. Lost: {r.lost} if {r.ov}% migrate away</div>
+          </React.Fragment>
+        ))}
+        <div className="tbl-row total">
+          <div style={{fontSize:12,color:'var(--tm)'}}>TOTAL PORTFOLIO RISK</div>
+          <div/><div style={{color:'var(--yellow)'}}>$82K/mo</div><div style={{color:'var(--yellow)'}}>61%</div>
+          <div><span className="risk-badge risk-med"><span style={{width:5,height:5,borderRadius:'50%',background:'var(--yellow)',display:'inline-block'}}/>MED</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════ PAYLOADS MODAL (with EDIT) ════════════════ */
+function PayloadsModal({schema,onClose,onPush}){
+  const [tab,setTab]=useState(0);
+  const [pushing,setPushing]=useState(false);
+  const [pushed,setPushed]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const tabs=['Salesforce','SAP BRIM','Entitlement Engine'];
+  const basePayloads=useMemo(()=>[genSF(schema),genSAP(schema),genEnt(schema)],[schema]);
+  const [editedJsons,setEditedJsons]=useState(()=>basePayloads.map(p=>JSON.stringify(p,null,2)));
+  const [editError,setEditError]=useState('');
+  const [copied,setCopied]=useState(false);
+  const currentJson=editedJsons[tab];
+  const saveEdit=(newJson)=>{
+    try{JSON.parse(newJson);setEditedJsons(arr=>{const n=[...arr];n[tab]=newJson;return n;});setEditError('');setEditing(false);}
+    catch(e){setEditError('Invalid JSON — please check syntax');}
+  };
+  const doPush=()=>{setPushing(true);setTimeout(()=>{setPushed(true);setTimeout(()=>{onPush();onClose();},1000);},2000);};
+  return(
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{width:'80vw',maxWidth:840,height:'82vh'}} onClick={e=>e.stopPropagation()}>
+        <div className="modal-hdr">
+          <span className="modal-title">API Payloads — Ready for Provisioning</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="payload-tabs">
+          {tabs.map((t,i)=><button key={i} className={`p-tab${tab===i?' active':''}`} onClick={()=>{setTab(i);setEditing(false);setEditError('');}}>
+            {t}{editedJsons[i]!==JSON.stringify(basePayloads[i],null,2)&&<span style={{marginLeft:'.35rem',fontSize:9,color:'var(--yellow)'}}>✎</span>}
+          </button>)}
+          <div style={{marginLeft:'auto',display:'flex',gap:'.5rem',alignItems:'center'}}>
+            {!editing&&<button className="btn-edit" onClick={()=>{setEditing(true);setEditError('');}}>✎ Edit</button>}
+            {editing&&<><button className="btn btn-sm btn-outline" onClick={()=>{setEditing(false);setEditError('');}}>Cancel</button><button className="btn btn-sm btn-primary" onClick={()=>saveEdit(editedJsons[tab])}>✓ Save</button></>}
+          </div>
+        </div>
+        <div style={{flex:1,overflow:'auto',padding:'1.25rem'}}>
+          {editError&&<div style={{padding:'.6rem 1rem',background:'rgba(239,68,68,.1)',border:'1px solid var(--red)',borderRadius:6,fontSize:12,color:'var(--red)',marginBottom:'.75rem'}}>{editError}</div>}
+          {editing?(
+            <textarea className="json-edit-area" value={currentJson}
+              onChange={e=>{const n=[...editedJsons];n[tab]=e.target.value;setEditedJsons(n);setEditError('');}}/>
+          ):(
+            <div className="code-wrap">
+              <div className="code-btn-row">
+                <button className={`copy-btn${copied?' ok':''}`} onClick={()=>{navigator.clipboard?.writeText(currentJson);setCopied(true);setTimeout(()=>setCopied(false),2000);}}>{copied?'✓ Copied':'Copy'}</button>
+              </div>
+              <div className="code-block" style={{paddingTop:'2.5rem'}} dangerouslySetInnerHTML={{__html:hl(currentJson)}}/>
+            </div>
+          )}
+        </div>
+        <div className="modal-ftr">
+          <div style={{fontSize:11,color:'var(--tm)'}}>Generated: {new Date().toISOString().slice(0,16)}Z · SKU: {schema.sku}</div>
+          <div style={{display:'flex',gap:'.75rem'}}>
+            <button className="btn btn-outline btn-sm" onClick={onClose}>Close</button>
+            <div className="sap-wrap">
+              <button className={`btn ${pushed?'btn-green':'btn-primary'}`} onClick={doPush} disabled={pushing||pushed||editing}>
+                {pushing?<><span className="spinner"/>&nbsp;Pushing…</>:pushed?'✓ Pushed':'Finalize & Push to SAP'}
+              </button>
+              {!pushed&&<div className="sap-tip">
+                <div className="sap-tip-hdr">What "Push to SAP" provisions</div>
+                {[
+                  {color:'#3b82f6',sys:'Salesforce CPQ',desc:'Receives SKU metadata + pricing rules. Updates quote templates and price books for sales reps.'},
+                  {color:'#ff5c35',sys:'SAP BRIM',desc:'Creates billing plan, subscription lifecycle rules, and revenue recognition schedule for the new SKU.'},
+                  {color:'#10b981',sys:'Entitlement Engine',desc:'Activates feature flags (e.g. FIREWALL_BASE_ENABLED) and sets UoM entitlement limits per customer tier.'},
+                ].map(({color,sys,desc})=>(
+                  <div key={sys} className="sap-tip-row">
+                    <div className="sap-tip-dot" style={{background:color}}/>
+                    <div><span style={{fontWeight:700,color:'var(--tp)'}}>{sys}</span><br/><span style={{color:'var(--tm)',fontSize:11}}>{desc}</span></div>
+                  </div>
+                ))}
+              </div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════ LAUNCH OVERLAY ════════════════ */
+function LaunchOverlay({schema,onClose}){
+  const available=new Date(Date.now()+24*60*60*1000);
+  const availStr=available.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})
+    +' · '+available.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  return(
+    <div className="launch-overlay" style={{overflowY:'auto',justifyContent:'flex-start',paddingTop:'2.5rem',paddingBottom:'2.5rem'}}>
+      <div style={{textAlign:'center',marginBottom:'1rem'}}>
+        <div className="launch-rocket">🚀</div>
+        <div className="launch-title">Kepler Launch Complete</div>
+        <div style={{fontSize:16,color:'var(--ts)',fontWeight:600,marginTop:'.4rem'}}>{schema.productName}</div>
+        <div style={{fontSize:13,color:'var(--tm)',marginTop:'.2rem'}}>{schema.sku} is now provisioned in SAP BRIM</div>
+      </div>
+      <div className="launch-cards">
+        {['Salesforce CPQ ✓','SAP BRIM ✓','Entitlement Engine ✓'].map(s=><div className="l-card" key={s}><span style={{color:'var(--green)'}}>●</span>{s}</div>)}
+      </div>
+      <div style={{fontSize:13,color:'var(--tm)',marginTop:'.5rem',textAlign:'center'}}>
+        NPI cycle time: &lt;5 minutes · Previous baseline: 6+ weeks
+      </div>
+      <div className="next-steps-card">
+        <div className="next-steps-hdr">NEXT — Automatic backend sync (4–24 hours)</div>
+        <div style={{fontSize:12,color:'var(--tm)',marginBottom:'.9rem',lineHeight:1.6}}>
+          Kepler's job is complete. The following sync automatically — no action required:
+        </div>
+        {[
+          {icon:'💰',sys:'Salesforce CPQ',action:'will refresh price books and update quote configurations for sales reps'},
+          {icon:'🔑',sys:'Entitlement Engine',action:'will activate feature flags and set per-tier access controls'},
+          {icon:'🛒',sys:'Customer Portal',action:'will surface the BUY option for all eligible customer accounts'},
+        ].map(({icon,sys,action})=>(
+          <div key={sys} className="nxt-row">
+            <span style={{fontSize:15,flexShrink:0}}>{icon}</span>
+            <div><span style={{fontWeight:700,color:'var(--green)'}}>{sys}</span><span style={{color:'var(--ts)'}}> {action}</span></div>
+          </div>
+        ))}
+        <div className="nxt-avail">
+          <div style={{color:'#93c5fd',fontWeight:700,fontSize:12,marginBottom:'.25rem'}}>📅 Expected customer availability</div>
+          <div style={{color:'var(--ts)',fontSize:13,fontWeight:600}}>{availStr}</div>
+          <div style={{color:'var(--tm)',fontSize:11,marginTop:'.3rem'}}>Monitor sync status in your Salesforce, SAP BRIM, and Entitlement dashboards</div>
+        </div>
+      </div>
+      <button className="btn btn-outline" style={{marginTop:'1.25rem'}} onClick={onClose}>Dismiss &amp; Return to Catalog</button>
+    </div>
+  );
+}
+
+/* ════════════════ CUSTOMER DASHBOARD ════════════════ */
+function CustomerDashboard({schema,launched}){
+  const base=[
+    {name:'Firewall-Base',desc:'Core stateful firewall with DPI across all WB network segments. 100% adoption.',status:'active',pct:82,useLbl:'82 / 100 sessions',color:'#10b981'},
+    {name:'AI-Threat-Detection',desc:'ML-powered real-time threat analysis. Monitoring 45M log events/month.',status:'active',pct:68,useLbl:'68 GB / 100 GB quota',color:'#10b981'},
+    {name:'Advanced-Heuristics',desc:'Behavioral analysis engine. Requires PA-300+ hardware.',status:'locked',lockReason:'Requires PA-300+ or PA-5000+ hardware. 40 units at WB-London are PA-200 (legacy). Apply AI fix to upgrade.'},
+    {name:'DLP',desc:'Data Loss Prevention — classify and control sensitive data exfiltration.',status:'locked',lockReason:'Not included in Ultimate-SASE-V2. Upgrade to Enterprise tier to unlock.'},
+  ];
+  const all=launched&&schema?[...base,{name:schema.productName,desc:`${schema.features.map(f=>f.name).join(', ')}. $${schema.basePrice}/${schema.pricingUnit}.${schema.freemium>0?` First ${schema.freemium} ${schema.pricingUnit} free.`:''}`,status:'new',pct:schema.freemium>0?30:5,useLbl:schema.freemium>0?`${schema.freemium} ${schema.pricingUnit} free tier`:'Monitoring started',color:'#ff5c35',sku:schema.sku}]:base;
+  return(
+    <div className="dash-outer">
+      <div className="dash-inner">
+        <div className="dash-hero">
+          <div>
+            <div style={{fontSize:22,fontWeight:700,color:'var(--tp)',marginBottom:'.3rem'}}>🏢 Warner Bros Discovery</div>
+            <div style={{fontSize:13,color:'var(--tm)'}}>Prisma Access · Ultimate-SASE-V2 · Enterprise-10K+ Cohort</div>
+            <div style={{display:'flex',gap:'.75rem',marginTop:'.75rem',flexWrap:'wrap'}}>
+              <span className="badge badge-green"><span className="badge-dot"/>10 Active Instances</span>
+              <span className="badge badge-green"><span className="badge-dot"/>150 GB avg/mo</span>
+              {launched&&<span className="badge badge-green"><span className="badge-dot"/>{schema?.productName} active</span>}
+            </div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:28,fontWeight:700,color:'var(--tp)'}}>${launched?'320K':'175K'}</div>
+            <div style={{fontSize:12,color:'var(--tm)'}}>Monthly Spend</div>
+          </div>
+        </div>
+        <div style={{fontSize:14,fontWeight:700,color:'var(--tp)',marginBottom:'.85rem'}}>
+          Feature Entitlements &nbsp;
+          {launched&&<span style={{fontSize:11,background:'rgba(255,92,53,.12)',border:'1px solid var(--accent)',color:'var(--accent)',padding:'.2rem .55rem',borderRadius:4,fontWeight:700}}>NEW PRODUCT ADDED</span>}
+        </div>
+        <div className="dash-feat-grid">
+          {all.map((f,i)=>(
+            <div className={`df-card${f.status==='active'?' active':f.status==='new'?' new-f':' locked'}`} key={i}>
+              <div className={`df-status${f.status==='active'?' ds-active':f.status==='new'?' ds-new':' ds-locked'}`}>
+                {f.status==='active'?'● Active':f.status==='new'?'✨ New':'🔒 Locked'}
+              </div>
+              <div className="df-name">{f.name}</div>
+              <div className="df-desc">{f.desc}</div>
+              {(f.status==='active'||f.status==='new')&&(
+                <div>
+                  <div className="use-bar-lbl"><span>Usage</span><span>{f.useLbl}</span></div>
+                  <div className="use-bar-bg"><div className="use-bar-fill" style={{width:`${f.pct}%`,background:`linear-gradient(90deg,${f.color},${f.color}88)`}}/></div>
+                  {f.status==='new'&&schema?.freemium>0&&<div style={{fontSize:11,color:'var(--green)',marginTop:'.4rem'}}>Free: {schema.freemium} {schema.pricingUnit} · then ${schema.basePrice}/{schema.pricingUnit}</div>}
+                </div>
+              )}
+              {f.status==='locked'&&<><div className="lock-box">🔒<span>{f.lockReason}</span></div><button className="upgrade-btn">Upgrade to Unlock →</button></>}
+              {f.sku&&<div style={{fontSize:10,color:'var(--tm)',marginTop:'.65rem',fontFamily:'monospace'}}>SKU: {f.sku}</div>}
+            </div>
+          ))}
+        </div>
+        {!launched&&<div style={{marginTop:'1.5rem',padding:'1.5rem',background:'rgba(255,92,53,.04)',border:'1px solid rgba(255,92,53,.2)',borderRadius:10,textAlign:'center',color:'var(--tm)',fontSize:14}}>Launch a product in the NPI Orchestrator to see new entitlements appear here</div>}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════ LEFT SIDEBAR ════════════════ */
+const PHASE_INFO=[
+  {num:'Phase 1',title:'Intake',desc:'Describe your new product in plain English. AI parses it into a structured schema.',tips:['Include pricing (e.g. $10/GB)','Specify minimum commitment','Mention feature flags if known','Add freemium details if applicable']},
+  {num:'Phase 2',title:'Technical Mapping',desc:'Review and refine the AI-generated SKU schema. All fields are editable inline.',tips:['Select features from dropdown only','Each feature needs at least one UoM','UoMs are validated against approved catalog','All changes regenerate payloads instantly']},
+  {num:'Phase 3',title:'Validation',desc:'Simulate launch against a real customer to catch conflicts before go-live.',tips:['Select a customer from the dropdown','Hardware and compliance checks auto-run','Fix BOTH issues to proceed','Regional blocks must be escalated']},
+  {num:'Phase 4',title:'Launch',desc:'Review auto-generated API payloads. Edit if needed, then push to production.',tips:['Review all 3 payload tabs','Click ✎ Edit to modify any payload','Approve release then finalize','Right panel updates with new SKU']},
+];
+function LeftSidebar({step,approveRelease,setApproveRelease,schema}){
+  const info=PHASE_INFO[Math.min(step-1,3)];
+  return(
+    <div className="sidebar-left">
+      <div className="phase-card">
+        <div className="phase-num">{info.num} of 4</div>
+        <div className="phase-title">{info.title}</div>
+        <div className="phase-desc">{info.desc}</div>
+        <div className="phase-tips">{info.tips.map((t,i)=><div className="phase-tip" key={i}>{t}</div>)}</div>
+      </div>
+      {step>=4&&schema&&(
+        <div>
+          <div className="sec-label" style={{marginTop:'.5rem'}}>Release Approval</div>
+          <div className={`approve-row${approveRelease?' checked':''}`} onClick={()=>setApproveRelease(v=>!v)}>
+            <div className={`check-box${approveRelease?' on':''}`}>{approveRelease&&<span style={{color:'#fff',fontSize:11,fontWeight:700}}>✓</span>}</div>
+            <span style={{fontSize:14,fontWeight:500,color:'var(--ts)'}}>Approve Release</span>
+          </div>
+          {approveRelease&&<div style={{fontSize:12,color:'var(--green)',marginTop:'.5rem',paddingLeft:'.5rem'}}>✓ Approved — ready to push</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════ BOTTOM BAR ════════════════ */
+function BottomBar({step,schema,approveRelease,onOpenPayloads,launched}){
+  const riskC=launched?'badge-green':step>=3?'badge-green':'badge-yellow';
+  const riskT=launched?'LAUNCHED':step>=3?'LOW RISK':'IN PROGRESS';
+  const btnLabel=launched?'✓ Launched':`Finalize & Push to SAP`;
+  const btnEnabled=!launched&&step>=4&&approveRelease&&!!schema;
+  return(
+    <div className="bottombar">
+      <div className={`badge ${riskC}`}><span className="badge-dot"/>Launch Readiness: {riskT}</div>
+      <div style={{fontSize:12,color:'var(--tm)'}}>Kepler · Palo Alto Networks NPI Platform</div>
+      <button className={`btn ${step>=4&&!launched?'btn-green':'btn-primary'}`} disabled={!btnEnabled} onClick={onOpenPayloads} style={step>=4&&!launched?{animation:'glowG 1.5s ease-in-out infinite'}:{}}>
+        {btnLabel}
+      </button>
+    </div>
+  );
+}
+
+/* ════════════════ APP ════════════════ */
+function App(){
+  const [activeTab,setActiveTab]=useState('orchestrator');
+
+
+      const [input,setInput]=useState("Cortex-Shield — AI-powered threat detection. $10/GB monthly cost, 1-year minimum commitment. Must toggle 'Advanced-Heuristics' flag in Prisma Access");
+
+  const [schema,setSchema]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [dupe,setDupe]=useState(null);
+  const [dedupDone,setDedupDone]=useState(false);
+  const [step,setStep]=useState(1);
+  const [selectedCust,setSelectedCust]=useState('');
+  const [hwState,setHwState]=useState('unresolved');
+  const [compState,setCompState]=useState('unresolved');
+  const [approveRelease,setApproveRelease]=useState(false);
+  const [showPayloads,setShowPayloads]=useState(false);
+  const [showLaunch,setShowLaunch]=useState(false);
+  const [launched,setLaunched]=useState(false);
+  const [catalog,setCatalog]=useState([...INIT_CATALOG]);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
+
+  const handleGenerate=()=>{
+    if(!input.trim())return;setLoading(true);setDedupDone(false);setDupe(null);
+    setTimeout(()=>{const d=findDupe(input);setDupe(d);setLoading(false);if(!d){const s=parseConcept(input);setSchema(s);}},1800);
+  };
+  const handleCreateNew=()=>{const s=parseConcept(input);setSchema(s);setDupe(null);setDedupDone(true);};
+  const handleUseExisting=()=>{setDupe(null);setDedupDone(true);};
+  const handleFix=(id)=>{if(id==='hardware')setHwState('resolved');else setCompState('escalated');};
+  const handlePushed=()=>{setShowPayloads(false);setShowLaunch(true);};
+  const handleLaunchClose=()=>{
+    setShowLaunch(false);setLaunched(true);
+    if(schema){
+      const mo=new Date().toLocaleString('default',{month:'short'});
+      const yr=new Date().getFullYear();
+      setCatalog(c=>[...c,{sku:schema.sku,plan:schema.plan,price:schema.basePrice,pricingUnit:schema.pricingUnit,minTerm:schema.minTerm,family:'prisma',features:schema.features.map(f=>({name:f.name,flag:f.flag,uoms:[...f.uoms]})),customers:0,monthlyRevenue:0,arr:0,launchDate:`${mo} ${yr}`,lastSoldDate:'—',lastModifiedDate:`${mo} ${yr}`}]);
+    }
+  };
+  const reset=()=>{setSchema(null);setInput('');setDupe(null);setDedupDone(false);setStep(1);setSelectedCust('');setHwState('unresolved');setCompState('unresolved');setApproveRelease(false);setLaunched(false);setCatalog([...INIT_CATALOG]);};
+
+  return(
+    <>
+      <div className="app-grid">
+        {/* ── TOPBAR ── */}
+        <div className="topbar">
+          <div className="topbar-banner">
+            <div className="kepler-logo">
+              <KeplerIcon size={38}/>
+              <div className="kepler-wordmark">
+                <div className="kepler-name">Kepler</div>
+                <div className="kepler-tagline">PAN-OS NPI Orchestration Platform</div>
+              </div>
+            </div>
+            <div className="banner-headline">
+              <div className="banner-h1">Launching New Products to Sell. <span>Fast.</span></div>
+              <div className="banner-sub">for Palo Alto Networks · AI-Assisted NPI</div>
+              <div className="banner-dots">
+                {['#ff5c35','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#e2e8f0'].map((c,i)=><div key={i} className="bdot" style={{background:c}}/>)}
+              </div>
+            </div>
+            <div style={{width:180}}/>
+          </div>
+          <div className="topbar-nav">
+            <div style={{width:180}}/>
+            <div className="nav-tabs">
+              <button className={`nav-tab${activeTab==='orchestrator'?' active':''}`} onClick={()=>setActiveTab('orchestrator')}>NPI Orchestrator</button>
+              <button className={`nav-tab${activeTab==='dashboard'?' active':''}`} onClick={()=>setActiveTab('dashboard')}>Customer Dashboard</button>
+            </div>
+            <div style={{width:180,display:'flex',justifyContent:'flex-end',alignItems:'center'}}>
+              {schema&&<div className={`badge badge-${launched?'green':step>=3?'green':'yellow'}`}><span className="badge-dot"/>{launched?'LAUNCHED':step>=3?'LOW RISK':'IN PROGRESS'}</div>}
+            </div>
+          </div>
+        </div>
+
+        {/* ── DASHBOARD TAB ── */}
+        {activeTab==='dashboard'?(
+          <CustomerDashboard schema={schema} launched={launched}/>
+        ):(
+          <>
+            <LeftSidebar step={step} approveRelease={approveRelease} setApproveRelease={setApproveRelease} schema={schema}/>
+            <div className="main">
+              <Stepper step={step}/>
+
+              {step===1&&(
+                <div style={{animation:'fadeUp .3s ease-out'}}>
+                  <div style={{fontSize:16,fontWeight:700,color:'var(--tp)',marginBottom:'.25rem'}}>Intake — Marketing Concept</div>
+                  <div style={{fontSize:13,color:'var(--tm)',marginBottom:'1.1rem'}}>Paste a plain-text product description. AI will parse it into a structured NPI schema.</div>
+                  <label className="concept-label">Marketing Concept</label>
+                  <textarea className="concept-area" value={input} onChange={e=>setInput(e.target.value)} disabled={loading||!!schema} rows={5}
+                    placeholder={`Example: Cortex-Shield — AI-powered threat detection. $10/GB monthly cost, 1-year minimum commitment. Must toggle 'Advanced-Heuristics' flag in Prisma Access. First 5GB eligible for freemium trial.`}/>
+                  {!schema&&<button className="btn btn-primary" style={{marginTop:'.75rem'}} onClick={handleGenerate} disabled={loading||!input.trim()}>
+                    {loading?<><span className="spinner"/>&nbsp;Analyzing…</>:'⚡ De-duplicate & Map'}
+                  </button>}
+                  {dupe&&!dedupDone&&<DedupBanner dupe={dupe} onUseExisting={handleUseExisting} onCreateNew={handleCreateNew}/>}
+                  {dedupDone&&!schema&&<div style={{padding:'.65rem 1rem',background:'rgba(100,116,139,.08)',borderRadius:8,fontSize:13,color:'var(--tm)',marginTop:'.75rem'}}>Using existing SKU: {dupe?.match?.sku}</div>}
+                  
+                  {schema&&( <>
+    <details style={{marginBottom:'1rem',background:'rgba(51,65,85,.1)',border:'1px solid var(--b2)',borderRadius:8,padding:'.7rem 1rem'}}>
+      <summary style={{fontSize:12,fontWeight:700,color:'var(--tm)',cursor:'pointer',letterSpacing:.4}}>📝 YOUR INPUT (click to expand)</summary>
+      <div style={{marginTop:'.6rem',fontSize:13,color:'var(--ts)',lineHeight:1.65,fontStyle:'italic'}}>"{input}"</div>
+    </details>
+    <SchemaEditor schema={schema} setSchema={setSchema}/>
+
+                      <div style={{display:'flex',gap:'1rem',marginTop:'1.25rem'}}>
+                        <button className="btn btn-primary" onClick={()=>setStep(2)}>Next: Technical Mapping →</button>
+                        <button className="btn btn-outline btn-sm" onClick={reset}>↺ Reset</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {step===2&&schema&&(
+                <div style={{animation:'fadeUp .3s ease-out'}}>
+                  <div style={{fontSize:16,fontWeight:700,color:'var(--tp)',marginBottom:'.25rem'}}>Technical Mapping — Refine SKU Schema</div>
+                  <div style={{fontSize:13,color:'var(--tm)',marginBottom:'1.1rem'}}>Adjust pricing, features, and UoMs. All changes regenerate API payloads instantly.</div>
+                  <SchemaEditor schema={schema} setSchema={setSchema}/>
+                  <ArrProjection schema={schema} catalog={catalog}/>
+                  <ImpactPanel hwState={hwState}/>
+                  <CanniTable/>
+                  <div style={{display:'flex',gap:'1rem',marginTop:'1.25rem'}}>
+                    <button className="btn btn-primary" onClick={()=>setStep(3)}>Next: Validate →</button>
+                    <button className="btn btn-outline btn-sm" onClick={()=>setStep(1)}>← Back</button>
+                  </div>
+                </div>
+              )}
+
+              {step===3&&schema&&(
+                <ValidationStep schema={schema} hwState={hwState} compState={compState} onFix={handleFix} onProceed={()=>setStep(4)}/>
+              )}
+
+              {step===4&&schema&&(
+                <div style={{animation:'fadeUp .3s ease-out'}}>
+                  <div style={{fontSize:16,fontWeight:700,color:'var(--tp)',marginBottom:'.25rem'}}>Launch — Review & Push to Production</div>
+                  <div style={{fontSize:13,color:'var(--tm)',marginBottom:'1.25rem'}}>All validation issues resolved. Approve the release and finalize API payloads.</div>
+                  <div className="card">
+                    <div className="card-title">✓ Validation Summary</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.75rem',fontSize:13}}>
+                      <div style={{color:'var(--green)'}}>✓ Hardware conflict resolved — PA200 upgrade path added</div>
+                      <div style={{color:'var(--green)'}}>✓ Germany compliance escalated — DE launch in 3wk</div>
+                      <div style={{color:'var(--green)'}}>✓ Schema validated — {schema.features.length} features, {schema.features.reduce((a,f)=>a+f.uoms.length,0)} UoMs</div>
+                      <div style={{color:'var(--green)'}}>✓ API payloads ready — Salesforce, SAP BRIM, Entitlement</div>
+                    </div>
+                  </div>
+                  <div className="card" style={{marginTop:'1rem'}}>
+                    <div className="card-title"><SkuLogo sku={schema.sku} size={22}/> SKU Ready for Launch</div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:'.85rem',fontSize:13}}>
+                      {[['SKU',schema.sku],['Plan',schema.plan],['Price',`$${schema.basePrice}/${schema.pricingUnit}`],['Min Term',`${schema.minTerm} months`],['Freemium',schema.freemium>0?`${schema.freemium} ${schema.pricingUnit}`:'None'],['Features',schema.features.length]].map(([l,v])=>(
+                        <div key={l}><div style={{fontSize:11,color:'var(--tm)',fontWeight:700,letterSpacing:.4,textTransform:'uppercase',marginBottom:'.25rem'}}>{l}</div><div style={{fontWeight:700,color:'var(--tp)'}}>{v}</div></div>
+                      ))}
+                    </div>
+                  </div>
+                  {!approveRelease&&<div style={{marginTop:'1rem',padding:'.75rem 1rem',background:'rgba(255,92,53,.04)',border:'1px solid rgba(255,92,53,.2)',borderRadius:8,fontSize:13,color:'var(--tm)',textAlign:'center'}}>← Check "Approve Release" in the left panel to enable</div>}
+                  {approveRelease&&<button className="btn btn-primary" style={{marginTop:'1rem',width:'100%',fontSize:14,padding:'.9rem'}} onClick={()=>setShowPayloads(true)}>📋 Review API Payloads & Finalize</button>}
+                  {launched&&<div style={{marginTop:'1rem',padding:'.75rem 1rem',background:'rgba(16,185,129,.08)',border:'1px solid var(--green)',borderRadius:8,fontSize:14,color:'var(--green)',textAlign:'center',fontWeight:600}}>✓ {schema.productName} is live! Right sidebar catalog updated.</div>}
+                </div>
+              )}
+            </div>
+            <BottomBar step={step} schema={schema} approveRelease={approveRelease} onOpenPayloads={()=>setShowPayloads(true)} launched={launched}/>
+          </>
+        )}
+      </div>
+
+      {/* RIGHT SIDEBAR (overlay) */}
+      {activeTab==='orchestrator'&&<RightSidebar catalog={catalog} open={sidebarOpen} onToggle={()=>setSidebarOpen(v=>!v)}/>}
+
+      {showPayloads&&schema&&<PayloadsModal schema={schema} onClose={()=>setShowPayloads(false)} onPush={handlePushed}/>}
+      {showLaunch&&schema&&<LaunchOverlay schema={schema} onClose={handleLaunchClose}/>}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
